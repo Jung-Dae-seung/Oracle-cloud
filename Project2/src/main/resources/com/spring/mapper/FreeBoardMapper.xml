@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.spring.mapper.FreeBoardMapper">
+
+	<!-- 삽입 : bno,title,content,writer 이며 bno의 경우 seq_board 값으로 삽입 (insert)-->
+	<insert id="insert">
+		<!-- 주로 pk 값을 미리 SQL 쿼리문을 통해서 처리해 두고 특정한 이름으로 결과를 보관 -->
+		<selectKey keyProperty="bno" order="BEFORE" resultType="int">
+			select seq_freeBoard.nextval from dual		
+		</selectKey>	
+		insert into freeboardTBL(bno,title,content,writer) values(#{bno},#{title},#{content},#{writer})
+	</insert>
+	
+	<!-- 삭제 : bno가 일치하면 삭제(delete) -->
+		<delete id="delete">
+			delete from freeboardTBL where bno=#{bno}	
+		</delete>
+		
+		
+		<!-- 수정 : title,content,updatedate,  bno가 일치시(update) -->
+		<update id="update">
+			update freeboardTBL
+			set title=#{title},content=#{content},updatedate=sysdate
+			where bno=#{bno}
+		</update>
+
+		<!-- 전체 조회 : 페이지 나누기 적용 -->
+		<select id="list" resultType="com.spring.domain.FreeBoardVO">
+			<![CDATA[
+					select *
+					from(select /*+INDEX_DESC(freeboardTBL pk_freeboardTBL)*/
+					          rownum rn,bno,title,writer,regdate,updatedate,replycnt
+					     from freeboardTBL
+					     where 
+			]]>		
+			
+			<include refid="criteria"></include>
+			     
+			<![CDATA[		     
+					     
+					     rownum <= (#{pageNum}*#{amount}))
+					where rn > ((#{pageNum}-1)*#{amount})		
+			]]>	
+		</select>
+
+		<!-- 전체 게시물 수 -->
+		<select id="totalCnt" resultType="int">
+			select count(*) from  freeboardTBL
+			where
+			<include refid="criteria"></include>
+				bno>0
+		</select>
+			
+		<!-- 특정번호 조회 : bno에 해당하는 게시물 가져오기(read) -->
+		<select id="read" resultType="com.spring.domain.FreeBoardVO">
+			select * from freeboardTBL where bno=#{bno}
+		</select>
+			
+		<!-- 댓글 숫자 수정 : 댓글의 삽입 or 댓글 삭제 시 -->
+		<update id="replyCntUpdate">
+			update freeboardTBL set replycnt = replycnt+ #{amount}
+			where bno=#{bno}
+		</update>
+			
+			
+		<!-- 동적 SQL -->
+		<sql id="criteria">
+			<trim prefix="(" suffix=") AND"  prefixOverrides="OR" >
+				<foreach collection="typeArr" item='type'>
+					<trim prefix="OR">
+						<choose>
+							<when test="type=='T'.toString()">
+								title like '%'||#{keyword}||'%'
+							</when>
+							<when test="type=='C'.toString()">
+								content like '%'||#{keyword}||'%'
+							</when>
+							<when test="type=='W'.toString()">
+								writer like '%'||#{keyword}||'%'
+							</when>
+						</choose>
+					</trim>
+				</foreach>
+			</trim>
+		</sql>
+			
+</mapper>
